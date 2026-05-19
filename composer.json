@@ -1,0 +1,33 @@
+{
+    "name": "patrick-fischer/html-plucker",
+    "description": "A modern, read-focused HTML scraping library for PHP 8.4+ built on Dom\\HTMLDocument.",
+    "keywords": ["html", "scraping", "dom", "parser", "css-selector"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Patrick Fischer",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "ext-dom": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11"
+    },
+    "autoload": {
+        "psr-4": {
+            "HtmlPlucker\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "HtmlPlucker\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "prefer-stable": true
+}
