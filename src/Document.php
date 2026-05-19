@@ -8,6 +8,8 @@ use HtmlPlucker\Exception\FileNotFoundException;
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
+use HtmlPlucker\Http\GuzzleHttpClient;
+use HtmlPlucker\Http\HttpClientInterface;
 
 /**
  * Entry point for HtmlPlucker.
@@ -52,50 +54,20 @@ final class Document
     /**
      * Fetches a URL and parses the response body as HTML.
      *
+     * Provide a custom $client to use a different HTTP implementation
+     * or to inject a MockHttpClient in tests.
+     *
      * @throws NetworkException if the URL cannot be fetched or returns an HTTP error
      */
     public static function fromUrl(
-        string $url,
-        int    $timeoutSeconds = 10,
-        array  $headers        = []
+        string              $url,
+        int                 $timeout = 10,
+        array               $headers = [],
+        ?HttpClientInterface $client  = null
     ): self {
-        $context = stream_context_create([
-            'http' => [
-                'timeout'          => $timeoutSeconds,
-                'follow_location'  => true,
-                'max_redirects'    => 5,
-                'ignore_errors'    => true,
-                'protocol_version' => '1.1',
-                'header'           => array_merge(
-                    ['User-Agent: HtmlPlucker/1.0'],
-                    $headers
-                ),
-            ],
-            'https' => [
-                'timeout'         => $timeoutSeconds,
-                'follow_location' => true,
-                'max_redirects'   => 5,
-            ],
-        ]);
+        $client ??= new GuzzleHttpClient();
 
-        $html = @file_get_contents($url, false, $context);
-
-        if ($html === false) {
-            throw new NetworkException(
-                "Could not fetch URL: \"{$url}\""
-            );
-        }
-
-        // Check HTTP status code
-        $statusLine = $http_response_header[0] ?? '';
-        if (preg_match('/HTTP\/\S+\s+(\d{3})/', $statusLine, $m)) {
-            $status = (int) $m[1];
-            if ($status >= 400) {
-                throw new NetworkException(
-                    "HTTP {$status} for URL: \"{$url}\""
-                );
-            }
-        }
+        $html = $client->get($url, $timeout, $headers);
 
         return self::fromString($html);
     }
