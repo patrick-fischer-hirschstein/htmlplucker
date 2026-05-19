@@ -4,9 +4,11 @@ namespace HtmlPlucker\Tests\Unit;
 
 use HtmlPlucker\Document;
 use HtmlPlucker\Exception\FileNotFoundException;
+use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
 use HtmlPlucker\Node;
+use HtmlPlucker\Tests\Support\MockHttpClient;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
@@ -33,6 +35,82 @@ final class DocumentTest extends TestCase
     {
         $this->expectException(ParseException::class);
         Document::fromString('   ');
+    }
+
+    // -------------------------------------------------------------------------
+    // fromUrl
+    // -------------------------------------------------------------------------
+
+    public function test_from_url_returns_document(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addResponse('https://example.com', '<h1>Hello</h1>');
+
+        $doc = Document::fromUrl('https://example.com', client: $mock);
+
+        $this->assertInstanceOf(Document::class, $doc);
+    }
+
+    public function test_from_url_passes_url_to_client(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addResponse('https://example.com', '<p>ok</p>');
+
+        Document::fromUrl('https://example.com', client: $mock);
+
+        $this->assertTrue($mock->wasRequested('https://example.com'));
+    }
+
+    public function test_from_url_passes_timeout_to_client(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addDefaultResponse('<p>ok</p>');
+
+        Document::fromUrl('https://example.com', timeout: 30, client: $mock);
+
+        $this->assertSame(30, $mock->getRequests()[0]['timeout']);
+    }
+
+    public function test_from_url_passes_headers_to_client(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addDefaultResponse('<p>ok</p>');
+
+        Document::fromUrl(
+            'https://example.com',
+            headers: ['X-Token' => 'abc'],
+            client: $mock
+        );
+
+        $this->assertSame('abc', $mock->getRequests()[0]['headers']['X-Token']);
+    }
+
+    public function test_from_url_throws_network_exception_on_failure(): void
+    {
+        $mock = new MockHttpClient(); // no responses registered
+
+        $this->expectException(NetworkException::class);
+        Document::fromUrl('https://unreachable.example', client: $mock);
+    }
+
+    public function test_from_url_throws_network_exception_on_http_error(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addResponse('https://example.com', '', 404);
+
+        $this->expectException(NetworkException::class);
+        Document::fromUrl('https://example.com', client: $mock);
+    }
+
+    public function test_from_url_parses_response_html(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addResponse('https://example.com', '<h1>Title</h1><p>Body</p>');
+
+        $doc = Document::fromUrl('https://example.com', client: $mock);
+
+        $this->assertSame('Title', $doc->expect('h1')->text());
+        $this->assertSame('Body', $doc->expect('p')->text());
     }
 
     // -------------------------------------------------------------------------
