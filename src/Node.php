@@ -140,8 +140,10 @@ final class Node
     {
         $result = [];
 
-        foreach ($this->element->children as $child) {
-            $result[] = new self($child);
+        foreach ($this->element->childNodes as $child) {
+            if ($child instanceof Element) {
+                $result[] = new self($child);
+            }
         }
 
         return $result;
