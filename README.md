@@ -2,9 +2,8 @@
 
 [![CI](https://github.com/patrick-fischer-hirschstein/htmlplucker/actions/workflows/ci.yml/badge.svg)](https://github.com/patrick-fischer-hirschstein/htmlplucker/actions/workflows/ci.yml)
 
-A modern, read-focused HTML scraping library for PHP 8.4+,
-built on PHP's native `\Dom\HTMLDocument` (Lexbor HTML5 parser)
-with Guzzle as HTTP client.
+Modern PHP 8.4+ HTML scraping library built on Dom\HTMLDocument
+— clean API, Guzzle HTTP, CSS selectors.
 
 ## Requirements
 
