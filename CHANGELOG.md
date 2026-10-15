@@ -5,6 +5,36 @@ All notable changes to HtmlPlucker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-10-15
+
+> **Enthält Breaking Changes** — bewusst in einer Minor-Version, da noch keine
+> Projekte auf HtmlPlucker aufbauen. Siehe README, Abschnitt „Upgrading from 1.0".
+
+### Changed — BREAKING
+
+- `guzzlehttp/guzzle` `^8.0` statt `^7.9`
+- `HttpClientInterface::get()` gibt `HttpResponse` statt `string` zurück —
+  eigene Implementierungen müssen angepasst werden; wer nur
+  `Document::fromUrl()` nutzt, ist nicht betroffen
+
+### Added
+
+- `Node::url($attribute = 'href')` — URL-Attribute als absolute URL; Basis ist
+  das erste `<base href>`, aufgelöst gegen die Dokument-URL
+- `Document::fromString()`/`fromFile()`: optionaler Parameter `$baseUrl`;
+  `fromUrl()` nutzt die finale URL nach Redirects als Basis
+- `Document::fromString()`/`fromFile()`: optionaler Parameter `$charset`;
+  `fromUrl()` übernimmt das Charset aus dem `Content-Type`-Header.
+  Reihenfolge wie in der HTML-Spezifikation: BOM > Charset > `<meta charset>` > UTF-8
+- `HttpResponse` mit `body`, `statusCode`, `charset`, `effectiveUrl`
+- `NetworkException::$statusCode` — Status bei HTTP-Fehlern (4xx/5xx), sonst `null`
+- `MockHttpClient::addResponse()`/`addDefaultResponse()`: optionaler `$charset`
+- `guzzlehttp/psr7` `^3.1` als direkte Abhängigkeit
+
+### Fixed
+
+- Seiten, die ihre Kodierung nur im HTTP-Header angeben, wurden falsch dekodiert
+
 ## [1.0.1] — 2026-10-15
 
 ### Fixed
