@@ -9,7 +9,7 @@ Modern PHP 8.4+ HTML scraping library built on Dom\HTMLDocument
 
 - PHP 8.4+
 - ext-dom
-- guzzlehttp/guzzle ^7.9
+- guzzlehttp/guzzle ^8.0
 
 ## Installation
 
@@ -126,7 +126,8 @@ try {
     $doc = Document::fromUrl($url);
 } catch (NetworkException $e) {
     // Connection failed or HTTP 4xx/5xx
-    // $e->statusCode: e.g. 404, 429, 503 — null if no response was received
+    // $e->statusCode: e.g. 404, 429, 503 — null unless the server
+    // answered with a 4xx/5xx status (DNS, timeout, redirect loop, ...)
 }
 
 // Optional — no exception, check for null
@@ -175,9 +176,12 @@ $doc = Document::fromUrl($url, client: new MyClient());
 
 ### Upgrading from 1.0
 
-`HttpClientInterface::get()` returns an `HttpResponse` instead of the body
-string. Custom implementations need to wrap their result as shown above.
-Code that only uses `Document::fromUrl()` is not affected.
+- **Guzzle 8 is required** (`guzzlehttp/guzzle ^8.0`). Projects still on
+  Guzzle 7 need to upgrade it first — see Guzzle's
+  [UPGRADING guide](https://github.com/guzzle/guzzle/blob/8.0/UPGRADING.md).
+- `HttpClientInterface::get()` returns an `HttpResponse` instead of the body
+  string. Custom implementations need to wrap their result as shown above.
+  Code that only uses `Document::fromUrl()` is not affected.
 
 ## Testing
 
