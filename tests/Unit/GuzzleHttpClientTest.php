@@ -77,6 +77,49 @@ final class GuzzleHttpClientTest extends TestCase
         $this->assertSame('<h1>Hi</h1>', $body);
     }
 
+    public function test_response_carries_status_code(): void
+    {
+        $response = $this->client(new Response(200, [], 'ok'))->get('https://example.com');
+
+        $this->assertSame(200, $response->statusCode);
+    }
+
+    public function test_charset_is_read_from_content_type(): void
+    {
+        $response = $this->client(
+            new Response(200, ['Content-Type' => 'text/html; charset=ISO-8859-1'], 'ok')
+        )->get('https://example.com');
+
+        $this->assertSame('ISO-8859-1', $response->charset);
+    }
+
+    public function test_charset_is_null_without_content_type_parameter(): void
+    {
+        $response = $this->client(
+            new Response(200, ['Content-Type' => 'text/html'], 'ok')
+        )->get('https://example.com');
+
+        $this->assertNull($response->charset);
+    }
+
+    public function test_effective_url_without_redirect_is_requested_url(): void
+    {
+        $response = $this->client()->get('https://example.com/page');
+
+        $this->assertSame('https://example.com/page', $response->effectiveUrl);
+    }
+
+    public function test_effective_url_follows_redirect(): void
+    {
+        $response = $this->client(
+            new Response(302, ['Location' => 'https://example.com/final']),
+            new Response(200, [], 'ok')
+        )->get('https://example.com/start');
+
+        $this->assertSame('https://example.com/final', $response->effectiveUrl);
+        $this->assertCount(2, $this->history);
+    }
+
     /**
      * @return array<string, array{int}>
      */
