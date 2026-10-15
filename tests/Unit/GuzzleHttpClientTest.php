@@ -18,8 +18,8 @@ use Psr\Http\Message\RequestInterface;
 
 final class GuzzleHttpClientTest extends TestCase
 {
-    /** @var list<array{request: RequestInterface}> */
-    private array $history = [];
+    /** @var list<RequestInterface> requests as sent, including redirects */
+    private array $sent = [];
 
     /**
      * @param Response|\Throwable ...$queue responses/exceptions in order;
@@ -27,16 +27,22 @@ final class GuzzleHttpClientTest extends TestCase
      */
     private function client(Response|\Throwable ...$queue): GuzzleHttpClient
     {
-        $queue = $queue ?: [new Response(200, [], 'ok')];
+        $queue = $queue !== [] ? array_values($queue) : [new Response(200, [], 'ok')];
         $stack = HandlerStack::create(new MockHandler($queue));
-        $stack->push(Middleware::history($this->history));
+
+        // Pushed after the default middleware -> innermost, sees redirected requests too
+        $stack->push(Middleware::mapRequest(function (RequestInterface $request): RequestInterface {
+            $this->sent[] = $request;
+
+            return $request;
+        }));
 
         return new GuzzleHttpClient(new Client(['handler' => $stack]));
     }
 
     private function sentRequest(): RequestInterface
     {
-        return $this->history[0]['request'];
+        return $this->sent[0];
     }
 
     public function test_sends_default_user_agent(): void
@@ -117,7 +123,7 @@ final class GuzzleHttpClientTest extends TestCase
         )->get('https://example.com/start');
 
         $this->assertSame('https://example.com/final', $response->effectiveUrl);
-        $this->assertCount(2, $this->history);
+        $this->assertCount(2, $this->sent);
     }
 
     /**

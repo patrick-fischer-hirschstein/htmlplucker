@@ -189,11 +189,14 @@ final class DocumentTest extends TestCase
         $this->assertSame([], $doc->all('span'));
     }
 
-    public function test_all_returns_array_of_nodes(): void
+    public function test_all_returns_nodes_in_document_order(): void
     {
-        $doc   = Document::fromString('<p>A</p><p>B</p>');
-        $nodes = $doc->all('p');
-        $this->assertContainsOnlyInstancesOf(Node::class, $nodes);
+        $nodes = Document::fromString('<p>A</p><p>B</p>')->all('p');
+
+        $this->assertSame(
+            ['A', 'B'],
+            array_map(static fn(Node $node): string => $node->text(), $nodes)
+        );
     }
 
     // -------------------------------------------------------------------------

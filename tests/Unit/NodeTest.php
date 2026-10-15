@@ -138,8 +138,10 @@ final class NodeTest extends TestCase
         $ul       = $this->doc('<ul><li>A</li><li>B</li><li>C</li></ul>')->expect('ul');
         $children = $ul->children();
 
-        $this->assertCount(3, $children);
-        $this->assertContainsOnlyInstancesOf(Node::class, $children);
+        $this->assertSame(
+            ['A', 'B', 'C'],
+            array_map(static fn(Node $node): string => $node->text(), $children)
+        );
     }
 
     public function test_next_returns_next_sibling(): void
