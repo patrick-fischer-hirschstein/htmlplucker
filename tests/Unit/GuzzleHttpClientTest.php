@@ -4,7 +4,8 @@ namespace HtmlPlucker\Tests\Unit;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\TooManyRedirectsException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -146,7 +147,25 @@ final class GuzzleHttpClientTest extends TestCase
             $this->fail('NetworkException erwartet');
         } catch (NetworkException $e) {
             $this->assertSame($status, $e->statusCode);
-            $this->assertInstanceOf(RequestException::class, $e->getPrevious());
+            $this->assertInstanceOf(BadResponseException::class, $e->getPrevious());
+        }
+    }
+
+    public function test_too_many_redirects_has_no_status_code(): void
+    {
+        // allow_redirects max = 5: the 6th redirect response aborts the transfer
+        $redirects = array_fill(
+            0,
+            6,
+            new Response(302, ['Location' => 'https://example.com/loop'])
+        );
+
+        try {
+            $this->client(...$redirects)->get('https://example.com');
+            $this->fail('NetworkException erwartet');
+        } catch (NetworkException $e) {
+            $this->assertNull($e->statusCode);
+            $this->assertInstanceOf(TooManyRedirectsException::class, $e->getPrevious());
         }
     }
 
