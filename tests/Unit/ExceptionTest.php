@@ -61,6 +61,20 @@ final class ExceptionTest extends TestCase
         $this->assertInstanceOf(\RuntimeException::class, new HtmlPluckerException());
     }
 
+    public function test_network_exception_status_code_defaults_to_null(): void
+    {
+        $this->assertNull((new NetworkException('timeout'))->statusCode);
+    }
+
+    public function test_network_exception_keeps_status_code_and_previous(): void
+    {
+        $previous = new \RuntimeException('upstream');
+        $e        = new NetworkException('HTTP 503', statusCode: 503, previous: $previous);
+
+        $this->assertSame(503, $e->statusCode);
+        $this->assertSame($previous, $e->getPrevious());
+    }
+
     public function test_selector_exception_extends_base(): void
     {
         $this->assertInstanceOf(

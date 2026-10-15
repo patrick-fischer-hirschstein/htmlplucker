@@ -102,6 +102,19 @@ final class DocumentTest extends TestCase
         Document::fromUrl('https://example.com', client: $mock);
     }
 
+    public function test_from_url_http_error_exposes_status_code(): void
+    {
+        $mock = (new MockHttpClient())
+            ->addResponse('https://example.com', '', 429);
+
+        try {
+            Document::fromUrl('https://example.com', client: $mock);
+            $this->fail('NetworkException erwartet');
+        } catch (NetworkException $e) {
+            $this->assertSame(429, $e->statusCode);
+        }
+    }
+
     public function test_from_url_parses_response_html(): void
     {
         $mock = (new MockHttpClient())
