@@ -123,6 +123,7 @@ HtmlPluckerException
 │   ├── NetworkException      URL not reachable or HTTP error
 │   └── FileNotFoundException File does not exist
 ├── ParseException            Empty input
+├── SelectorException         Invalid CSS selector
 └── NodeNotFoundException     expect() found nothing
 ```
 
