@@ -53,5 +53,9 @@ jobs:
           composer update --no-interaction --prefer-dist --no-progress
           ${{ matrix.dependencies == 'lowest' && '--prefer-lowest --prefer-stable' || '' }}
 
+      - name: Static analysis
+        if: matrix.dependencies == 'highest'
+        run: vendor/bin/phpstan analyse --no-progress
+
       - name: Run tests
         run: vendor/bin/phpunit --no-coverage
