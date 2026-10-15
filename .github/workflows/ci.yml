@@ -11,9 +11,6 @@ jobs:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     strategy:
       fail-fast: false
       matrix:
@@ -21,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -34,15 +31,20 @@ jobs:
       - name: Validate composer.json
         run: composer validate --strict
 
-      - name: Cache Composer packages
-        uses: actions/cache@v4
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v6
         with:
-          path: vendor
-          key: php-${{ matrix.php }}-composer-${{ hashFiles('composer.lock') }}
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: php-${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}
           restore-keys: php-${{ matrix.php }}-composer-
 
+      # Library: no composer.lock in the repo — resolve fresh on every run
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        run: composer update --no-interaction --prefer-dist --no-progress
 
       - name: Run tests
         run: vendor/bin/phpunit --no-coverage
