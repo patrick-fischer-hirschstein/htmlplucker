@@ -8,6 +8,7 @@ use HtmlPlucker\Exception\LoadException;
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
+use HtmlPlucker\Exception\SelectorException;
 use PHPUnit\Framework\TestCase;
 
 final class ExceptionTest extends TestCase
@@ -58,5 +59,22 @@ final class ExceptionTest extends TestCase
     public function test_all_exceptions_extend_runtime_exception(): void
     {
         $this->assertInstanceOf(\RuntimeException::class, new HtmlPluckerException());
+    }
+
+    public function test_selector_exception_extends_base(): void
+    {
+        $this->assertInstanceOf(
+            HtmlPluckerException::class,
+            new SelectorException('div[')
+        );
+    }
+
+    public function test_selector_exception_keeps_selector_and_previous(): void
+    {
+        $previous = new \DOMException('Syntax error');
+        $e        = new SelectorException('div[', $previous);
+
+        $this->assertStringContainsString('div[', $e->getMessage());
+        $this->assertSame($previous, $e->getPrevious());
     }
 }
