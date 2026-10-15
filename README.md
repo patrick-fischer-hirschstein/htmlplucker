@@ -46,8 +46,8 @@ foreach ($doc->all('table tr') as $row) {
 ### Loading
 
 ```php
-Document::fromString(string $html, ?string $charset = null): Document
-Document::fromFile(string $path, ?string $charset = null): Document
+Document::fromString(string $html, ?string $charset = null, ?string $baseUrl = null): Document
+Document::fromFile(string $path, ?string $charset = null, ?string $baseUrl = null): Document
 Document::fromUrl(
     string $url,
     int $timeout = 10,
@@ -96,6 +96,7 @@ $node->tag(): string                               // lowercase tag name
 // Attributes
 $node->attr(string $name, ?string $default): ?string
 $node->attrs(): array                              // all attributes
+$node->url(string $attribute = 'href'): ?string    // absolute URL (see below)
 
 // Traversal
 $node->parent(): ?Node
@@ -113,6 +114,31 @@ and treats block element boundaries and `<br>` as word separators:
 $row->text();    // "1 FC Example"
 $row->rawText(); // "1FC Example"
 ```
+
+### Resolving links
+
+`url()` returns a URL attribute (`href`, `src`, `action`, …) as an absolute URL:
+
+```php
+$doc = Document::fromUrl('https://example.com/verein/kader');
+
+foreach ($doc->all('table a') as $link) {
+    echo $link->url();             // "../spiel/123" -> "https://example.com/spiel/123"
+}
+
+$doc->first('img.logo')?->url('src');
+```
+
+The base URL is the first `<base href>` in the document, resolved against
+the URL the document was loaded from — for `fromUrl()` the final URL after
+redirects, for `fromString()`/`fromFile()` the optional `$baseUrl`:
+
+```php
+$doc = Document::fromFile('/path/to/saved-page.html', baseUrl: 'https://example.com/verein/');
+```
+
+Without an absolute base URL the value is returned unchanged (like `attr()`);
+a missing or empty attribute yields `null`.
 
 ## Error Handling
 
