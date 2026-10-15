@@ -13,7 +13,7 @@ use HtmlPlucker\Exception\NetworkException;
 interface HttpClientInterface
 {
     /**
-     * Performs a GET request and returns the response body as a string.
+     * Performs a GET request and returns body, status, charset and final URL.
      *
      * @param string                $url     Target URL
      * @param int                   $timeout Timeout in seconds
@@ -26,5 +26,5 @@ interface HttpClientInterface
         string $url,
         int    $timeout = 10,
         array  $headers = []
-    ): string;
+    ): HttpResponse;
 }

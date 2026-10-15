@@ -71,7 +71,8 @@ final class GuzzleHttpClientTest extends TestCase
     public function test_returns_response_body(): void
     {
         $body = $this->client(new Response(200, [], '<h1>Hi</h1>'))
-            ->get('https://example.com');
+            ->get('https://example.com')
+            ->body;
 
         $this->assertSame('<h1>Hi</h1>', $body);
     }

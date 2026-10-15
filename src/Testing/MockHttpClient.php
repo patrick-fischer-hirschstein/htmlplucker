@@ -4,6 +4,7 @@ namespace HtmlPlucker\Testing;
 
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Http\HttpClientInterface;
+use HtmlPlucker\Http\HttpResponse;
 
 /**
  * In-memory HTTP client for unit tests.
@@ -17,11 +18,11 @@ use HtmlPlucker\Http\HttpClientInterface;
  *   $doc = Document::fromUrl('https://example.com', client: $mock);
  *   $doc->expect('h1')->text(); // 'Hello'
  *
- *   $mock->assertRequested('https://example.com');
+ *   $mock->wasRequested('https://example.com'); // true
  */
 final class MockHttpClient implements HttpClientInterface
 {
-    /** @var array<string, array{html: string, status: int}> */
+    /** @var array<string, array{html: string, status: int, charset: ?string}> */
     private array $responses = [];
 
     /** @var array<int, array{url: string, timeout: int, headers: array}> */
@@ -35,11 +36,16 @@ final class MockHttpClient implements HttpClientInterface
      * Register a response for the given URL.
      */
     public function addResponse(
-        string $url,
-        string $html,
-        int    $status = 200
+        string  $url,
+        string  $html,
+        int     $status = 200,
+        ?string $charset = null
     ): self {
-        $this->responses[$url] = ['html' => $html, 'status' => $status];
+        $this->responses[$url] = [
+            'html'    => $html,
+            'status'  => $status,
+            'charset' => $charset,
+        ];
 
         return $this;
     }
@@ -48,9 +54,12 @@ final class MockHttpClient implements HttpClientInterface
      * Register a response that will be returned for ANY URL.
      * Useful when the exact URL doesn't matter for the test.
      */
-    public function addDefaultResponse(string $html, int $status = 200): self
-    {
-        return $this->addResponse('*', $html, $status);
+    public function addDefaultResponse(
+        string  $html,
+        int     $status = 200,
+        ?string $charset = null
+    ): self {
+        return $this->addResponse('*', $html, $status, $charset);
     }
 
     // -------------------------------------------------------------------------
@@ -61,7 +70,7 @@ final class MockHttpClient implements HttpClientInterface
         string $url,
         int    $timeout = 10,
         array  $headers = []
-    ): string {
+    ): HttpResponse {
         $this->requests[] = [
             'url'     => $url,
             'timeout' => $timeout,
@@ -85,7 +94,12 @@ final class MockHttpClient implements HttpClientInterface
             );
         }
 
-        return $response['html'];
+        return new HttpResponse(
+            body:         $response['html'],
+            statusCode:   $response['status'],
+            charset:      $response['charset'],
+            effectiveUrl: $url,
+        );
     }
 
     // -------------------------------------------------------------------------

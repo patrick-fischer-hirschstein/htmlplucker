@@ -40,26 +40,36 @@ final class Document
     /**
      * Parses an HTML string.
      *
-     * @throws ParseException if $html is empty
+     * Without $charset the encoding is detected from a BOM or
+     * <meta charset>; pass e.g. 'ISO-8859-1' to override detection.
+     *
+     * @throws ParseException if $html is empty or $charset is not supported
      */
-    public static function fromString(string $html): self
+    public static function fromString(string $html, ?string $charset = null): self
     {
-        if (trim($html) === '') {
-            throw new ParseException('HTML string must not be empty.');
+        try {
+            return new self(self::createDom($html, $charset));
+        } catch (\ValueError $e) {
+            throw new ParseException(
+                "Could not parse HTML: {$e->getMessage()}",
+                0,
+                $e
+            );
         }
-
-        return new self(
-            HTMLDocument::createFromString($html, LIBXML_NOERROR)
-        );
     }
 
     /**
      * Fetches a URL and parses the response body as HTML.
      *
+     * The charset from the Content-Type header is used for decoding.
+     * If the server names an unknown charset, encoding detection falls
+     * back to BOM / <meta charset>.
+     *
      * Provide a custom $client to use a different HTTP implementation
      * or to inject a MockHttpClient in tests.
      *
      * @throws NetworkException if the URL cannot be fetched or returns an HTTP error
+     * @throws ParseException if the response body is empty
      */
     public static function fromUrl(
         string              $url,
@@ -69,17 +79,29 @@ final class Document
     ): self {
         $client ??= new GuzzleHttpClient();
 
-        $html = $client->get($url, $timeout, $headers);
+        $response = $client->get($url, $timeout, $headers);
 
-        return self::fromString($html);
+        if ($response->charset === null) {
+            return self::fromString($response->body);
+        }
+
+        try {
+            return new self(self::createDom($response->body, $response->charset));
+        } catch (\ValueError) {
+            // Server sent an unsupported charset name (e.g. "charset=none")
+            return self::fromString($response->body);
+        }
     }
 
     /**
      * Reads a file from disk and parses it as HTML.
      *
+     * @see fromString() for the $charset parameter
+     *
      * @throws FileNotFoundException if the file does not exist or is not readable
+     * @throws ParseException if the file is empty or $charset is not supported
      */
-    public static function fromFile(string $path): self
+    public static function fromFile(string $path, ?string $charset = null): self
     {
         if (!is_file($path) || !is_readable($path)) {
             throw new FileNotFoundException(
@@ -95,7 +117,20 @@ final class Document
             );
         }
 
-        return self::fromString($html);
+        return self::fromString($html, $charset);
+    }
+
+    /**
+     * @throws ParseException if $html is empty
+     * @throws \ValueError    if $charset is not a supported encoding
+     */
+    private static function createDom(string $html, ?string $charset): HTMLDocument
+    {
+        if (trim($html) === '') {
+            throw new ParseException('HTML string must not be empty.');
+        }
+
+        return HTMLDocument::createFromString($html, LIBXML_NOERROR, $charset);
     }
 
     // -------------------------------------------------------------------------
