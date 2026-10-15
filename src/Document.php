@@ -8,8 +8,10 @@ use HtmlPlucker\Exception\FileNotFoundException;
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
+use HtmlPlucker\Exception\SelectorException;
 use HtmlPlucker\Http\GuzzleHttpClient;
 use HtmlPlucker\Http\HttpClientInterface;
+use HtmlPlucker\Internal\Query;
 
 /**
  * Entry point for HtmlPlucker.
@@ -102,44 +104,46 @@ final class Document
 
     /**
      * Returns the first element matching $selector, or null.
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function first(string $selector): ?Node
     {
-        $element = $this->dom->querySelector($selector);
+        $element = Query::first($this->dom, $selector);
 
-        return $element instanceof Element ? new Node($element) : null;
+        return $element !== null ? new Node($element) : null;
     }
 
     /**
      * Returns all elements matching $selector.
      *
-     * @return Node[]
+     * @return list<Node>
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function all(string $selector): array
     {
-        $result = [];
-
-        foreach ($this->dom->querySelectorAll($selector) as $element) {
-            if ($element instanceof Element) {
-                $result[] = new Node($element);
-            }
-        }
-
-        return $result;
+        return array_map(
+            static fn(Element $element): Node => new Node($element),
+            Query::all($this->dom, $selector)
+        );
     }
 
     /**
      * Returns true if at least one element matches $selector.
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function has(string $selector): bool
     {
-        return $this->dom->querySelector($selector) !== null;
+        return Query::first($this->dom, $selector) !== null;
     }
 
     /**
      * Returns the first element matching $selector.
      *
      * @throws NodeNotFoundException
+     * @throws SelectorException on an invalid selector
      */
     public function expect(string $selector): Node
     {

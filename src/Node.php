@@ -4,6 +4,8 @@ namespace HtmlPlucker;
 
 use Dom\Element;
 use HtmlPlucker\Exception\NodeNotFoundException;
+use HtmlPlucker\Exception\SelectorException;
+use HtmlPlucker\Internal\Query;
 
 /**
  * Wraps a \Dom\Element and provides a clean read API.
@@ -78,10 +80,12 @@ final class Node
 
     /**
      * Returns the first element matching $selector within this node, or null.
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function first(string $selector): ?self
     {
-        $element = $this->element->querySelector($selector);
+        $element = Query::first($this->element, $selector);
 
         return $element !== null ? new self($element) : null;
     }
@@ -89,27 +93,33 @@ final class Node
     /**
      * Returns all elements matching $selector within this node.
      *
-     * @return self[]
+     * @return list<self>
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function all(string $selector): array
     {
-        return self::nodeListToArray(
-            $this->element->querySelectorAll($selector)
+        return array_map(
+            static fn(Element $element): self => new self($element),
+            Query::all($this->element, $selector)
         );
     }
 
     /**
      * Returns true if at least one element matches $selector within this node.
+     *
+     * @throws SelectorException on an invalid selector
      */
     public function has(string $selector): bool
     {
-        return $this->element->querySelector($selector) !== null;
+        return Query::first($this->element, $selector) !== null;
     }
 
     /**
      * Returns the first element matching $selector within this node.
      *
      * @throws NodeNotFoundException
+     * @throws SelectorException on an invalid selector
      */
     public function expect(string $selector): self
     {
@@ -167,25 +177,5 @@ final class Node
         $sibling = $this->element->previousElementSibling;
 
         return $sibling !== null ? new self($sibling) : null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Internal helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * @return self[]
-     */
-    private static function nodeListToArray(\Dom\NodeList $list): array
-    {
-        $result = [];
-
-        foreach ($list as $element) {
-            if ($element instanceof Element) {
-                $result[] = new self($element);
-            }
-        }
-
-        return $result;
     }
 }
