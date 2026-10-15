@@ -121,6 +121,13 @@ final class Document
     }
 
     /**
+     * Encoding precedence follows the HTML spec:
+     * BOM > $charset > <meta charset> > UTF-8.
+     *
+     * PHP skips BOM sniffing entirely when an override encoding is passed
+     * (and leaves the BOM bytes in the content), so $charset is dropped
+     * whenever the input starts with a BOM.
+     *
      * @throws ParseException if $html is empty
      * @throws \ValueError    if $charset is not a supported encoding
      */
@@ -130,7 +137,21 @@ final class Document
             throw new ParseException('HTML string must not be empty.');
         }
 
+        if ($charset !== null && self::startsWithBom($html)) {
+            $charset = null;
+        }
+
         return HTMLDocument::createFromString($html, LIBXML_NOERROR, $charset);
+    }
+
+    /**
+     * Detects a UTF-8, UTF-16BE or UTF-16LE byte order mark.
+     */
+    private static function startsWithBom(string $html): bool
+    {
+        return str_starts_with($html, "\xEF\xBB\xBF")
+            || str_starts_with($html, "\xFE\xFF")
+            || str_starts_with($html, "\xFF\xFE");
     }
 
     // -------------------------------------------------------------------------
