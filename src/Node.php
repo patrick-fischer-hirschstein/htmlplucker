@@ -3,6 +3,7 @@
 namespace HtmlPlucker;
 
 use Dom\Element;
+use Dom\Text;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\SelectorException;
 use HtmlPlucker\Internal\Query;
@@ -21,9 +22,31 @@ final class Node
     // -------------------------------------------------------------------------
 
     /**
-     * Returns the plaintext content of this element (no HTML tags).
+     * Returns the normalized plaintext content of this element.
+     *
+     * - Whitespace runs (incl. &nbsp; and other Unicode spaces) collapse
+     *   to a single space, the result is trimmed.
+     * - Block element boundaries and <br> act as word separators,
+     *   so "<td>1</td><td>2</td>" yields "1 2".
+     * - Content of <script>, <style> and <template> is ignored.
+     *
+     * Use rawText() for the unmodified textContent.
      */
     public function text(): string
+    {
+        $parts = [];
+        self::collectText($this->element, $parts);
+
+        return trim(
+            (string) preg_replace('/[\s\p{Z}]+/u', ' ', implode('', $parts))
+        );
+    }
+
+    /**
+     * Returns the unmodified textContent of this element,
+     * including all whitespace and script/style content.
+     */
+    public function rawText(): string
     {
         return $this->element->textContent ?? '';
     }
@@ -177,5 +200,62 @@ final class Node
         $sibling = $this->element->previousElementSibling;
 
         return $sibling !== null ? new self($sibling) : null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /** Elements whose content never counts as visible text. */
+    private const array SKIPPED_TAGS = [
+        'script' => true, 'style' => true, 'template' => true,
+    ];
+
+    /** Elements whose boundaries separate words. */
+    private const array BLOCK_TAGS = [
+        'address' => true, 'article' => true, 'aside' => true,
+        'blockquote' => true, 'br' => true, 'caption' => true,
+        'dd' => true, 'details' => true, 'dialog' => true, 'div' => true,
+        'dl' => true, 'dt' => true, 'fieldset' => true,
+        'figcaption' => true, 'figure' => true, 'footer' => true,
+        'form' => true, 'h1' => true, 'h2' => true, 'h3' => true,
+        'h4' => true, 'h5' => true, 'h6' => true, 'header' => true,
+        'hgroup' => true, 'hr' => true, 'legend' => true, 'li' => true,
+        'main' => true, 'nav' => true, 'ol' => true, 'option' => true,
+        'p' => true, 'pre' => true, 'section' => true, 'summary' => true,
+        'table' => true, 'tbody' => true, 'td' => true, 'tfoot' => true,
+        'th' => true, 'thead' => true, 'tr' => true, 'ul' => true,
+    ];
+
+    /**
+     * Collects text node data depth-first, inserting a space
+     * around block elements.
+     *
+     * @param list<string> $parts
+     */
+    private static function collectText(Element $element, array &$parts): void
+    {
+        foreach ($element->childNodes as $child) {
+            if ($child instanceof Text) {
+                $parts[] = $child->data;
+                continue;
+            }
+
+            if (!$child instanceof Element || isset(self::SKIPPED_TAGS[$child->localName])) {
+                continue;
+            }
+
+            $isBlock = isset(self::BLOCK_TAGS[$child->localName]);
+
+            if ($isBlock) {
+                $parts[] = ' ';
+            }
+
+            self::collectText($child, $parts);
+
+            if ($isBlock) {
+                $parts[] = ' ';
+            }
+        }
     }
 }

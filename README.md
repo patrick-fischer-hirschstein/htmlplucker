@@ -69,7 +69,8 @@ Document::fromUrl(
 
 ```php
 // Content
-$node->text(): string                              // plaintext, no tags
+$node->text(): string                              // normalized plaintext (see below)
+$node->rawText(): string                           // unmodified textContent
 $node->html(): string                              // inner HTML
 $node->tag(): string                               // lowercase tag name
 
@@ -82,6 +83,16 @@ $node->parent(): ?Node
 $node->children(): Node[]
 $node->next(): ?Node
 $node->prev(): ?Node
+```
+
+`text()` collapses all whitespace (including `&nbsp;`) to single spaces,
+trims the result, ignores `<script>`, `<style>` and `<template>`,
+and treats block element boundaries and `<br>` as word separators:
+
+```php
+// <tr><td>1</td><td>FC Example</td></tr>
+$row->text();    // "1 FC Example"
+$row->rawText(); // "1FC Example"
 ```
 
 ## Error Handling
