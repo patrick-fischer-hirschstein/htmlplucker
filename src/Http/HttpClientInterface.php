@@ -15,9 +15,10 @@ interface HttpClientInterface
     /**
      * Performs a GET request and returns the response body as a string.
      *
-     * @param string   $url            Target URL
-     * @param int      $timeout        Timeout in seconds
-     * @param string[] $headers        Additional request headers
+     * @param string                $url     Target URL
+     * @param int                   $timeout Timeout in seconds
+     * @param array<string, string> $headers Additional request headers,
+     *                                       name => value
      *
      * @throws NetworkException on connection failure or HTTP 4xx/5xx
      */
