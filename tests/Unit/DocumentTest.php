@@ -119,13 +119,15 @@ final class DocumentTest extends TestCase
 
     public function test_from_file_returns_document(): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'htmlplucker_') . '.html';
+        $path = tempnam(sys_get_temp_dir(), 'htmlplucker_');
         file_put_contents($path, '<p>Hello from file</p>');
 
-        $doc = Document::fromFile($path);
-        $this->assertInstanceOf(Document::class, $doc);
-
-        unlink($path);
+        try {
+            $doc = Document::fromFile($path);
+            $this->assertInstanceOf(Document::class, $doc);
+        } finally {
+            unlink($path);
+        }
     }
 
     public function test_from_file_throws_on_missing_file(): void
