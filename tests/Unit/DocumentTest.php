@@ -8,7 +8,7 @@ use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
 use HtmlPlucker\Node;
-use HtmlPlucker\Tests\Support\MockHttpClient;
+use HtmlPlucker\Testing\MockHttpClient;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 

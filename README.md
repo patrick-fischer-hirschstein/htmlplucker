@@ -140,7 +140,7 @@ Use `MockHttpClient` to test code that calls `Document::fromUrl()`
 without making real HTTP requests:
 
 ```php
-use HtmlPlucker\Tests\Support\MockHttpClient;
+use HtmlPlucker\Testing\MockHttpClient;
 
 $mock = (new MockHttpClient())
     ->addResponse('https://example.com', '<h1>Mocked</h1>');

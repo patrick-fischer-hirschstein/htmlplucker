@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace HtmlPlucker\Tests\Support;
+namespace HtmlPlucker\Testing;
 
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Http\HttpClientInterface;
