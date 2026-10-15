@@ -3,8 +3,8 @@
 namespace HtmlPlucker\Http;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\TransferStats;
 use HtmlPlucker\Exception\NetworkException;
 
@@ -56,8 +56,11 @@ final class GuzzleHttpClient implements HttpClientInterface
         } catch (GuzzleException $e) {
             throw new NetworkException(
                 message:    "Could not fetch URL: \"{$url}\" — {$e->getMessage()}",
-                statusCode: $e instanceof RequestException
-                    ? $e->getResponse()?->getStatusCode()
+                // Only HTTP error responses (4xx/5xx) carry a status; transfer
+                // failures after a non-error response (e.g. body timeout on 200,
+                // too many redirects) are reported without one.
+                statusCode: $e instanceof BadResponseException
+                    ? $e->getResponse()->getStatusCode()
                     : null,
                 previous:   $e
             );

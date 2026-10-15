@@ -5,8 +5,9 @@ namespace HtmlPlucker\Exception;
 /**
  * Thrown when a URL cannot be reached (timeout, DNS failure, HTTP error, etc.).
  *
- * $statusCode holds the HTTP status for 4xx/5xx responses
- * and is null when no response was received at all.
+ * $statusCode holds the HTTP status of 4xx/5xx error responses.
+ * It is null for all other failures: no response at all (DNS, connect,
+ * timeout) or a transfer failure after a non-error response.
  */
 class NetworkException extends LoadException
 {
