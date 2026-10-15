@@ -12,7 +12,8 @@
     "require": {
         "php": ">=8.4",
         "ext-dom": "*",
-        "guzzlehttp/guzzle": "^8.0"
+        "guzzlehttp/guzzle": "^8.0",
+        "guzzlehttp/psr7": "^3.1"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",

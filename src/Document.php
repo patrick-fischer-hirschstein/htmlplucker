@@ -28,9 +28,17 @@ final class Document
 {
     private HTMLDocument $dom;
 
-    private function __construct(HTMLDocument $dom)
+    /**
+     * @param string|null $baseUrl Absolute URL used to resolve relative links
+     *                             (Node::url()); stored as the DOM's documentURI
+     */
+    private function __construct(HTMLDocument $dom, ?string $baseUrl = null)
     {
         $this->dom = $dom;
+
+        if ($baseUrl !== null) {
+            $this->dom->documentURI = $baseUrl;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -43,12 +51,18 @@ final class Document
      * Without $charset the encoding is detected from a BOM or
      * <meta charset>; pass e.g. 'ISO-8859-1' to override detection.
      *
+     * $baseUrl is the absolute URL relative links are resolved against
+     * by Node::url() (a <base href> in the document takes precedence).
+     *
      * @throws ParseException if $html is empty or $charset is not supported
      */
-    public static function fromString(string $html, ?string $charset = null): self
-    {
+    public static function fromString(
+        string  $html,
+        ?string $charset = null,
+        ?string $baseUrl = null
+    ): self {
         try {
-            return new self(self::createDom($html, $charset));
+            return new self(self::createDom($html, $charset), $baseUrl);
         } catch (\ValueError $e) {
             throw new ParseException(
                 "Could not parse HTML: {$e->getMessage()}",
@@ -64,6 +78,8 @@ final class Document
      * The charset from the Content-Type header is used for decoding.
      * If the server names an unknown charset, encoding detection falls
      * back to BOM / <meta charset>.
+     *
+     * The final URL after redirects becomes the base URL for Node::url().
      *
      * Provide a custom $client to use a different HTTP implementation
      * or to inject a MockHttpClient in tests.
@@ -83,28 +99,33 @@ final class Document
 
         $response = $client->get($url, $timeout, $headers);
 
+        $baseUrl  = $response->effectiveUrl;
+
         if ($response->charset === null) {
-            return self::fromString($response->body);
+            return self::fromString($response->body, baseUrl: $baseUrl);
         }
 
         try {
-            return new self(self::createDom($response->body, $response->charset));
+            return new self(self::createDom($response->body, $response->charset), $baseUrl);
         } catch (\ValueError) {
             // Server sent an unsupported charset name (e.g. "charset=none")
-            return self::fromString($response->body);
+            return self::fromString($response->body, baseUrl: $baseUrl);
         }
     }
 
     /**
      * Reads a file from disk and parses it as HTML.
      *
-     * @see fromString() for the $charset parameter
+     * @see fromString() for the $charset and $baseUrl parameters
      *
      * @throws FileNotFoundException if the file does not exist or is not readable
      * @throws ParseException if the file is empty or $charset is not supported
      */
-    public static function fromFile(string $path, ?string $charset = null): self
-    {
+    public static function fromFile(
+        string  $path,
+        ?string $charset = null,
+        ?string $baseUrl = null
+    ): self {
         if (!is_file($path) || !is_readable($path)) {
             throw new FileNotFoundException(
                 "File not found or not readable: \"{$path}\""
@@ -119,7 +140,7 @@ final class Document
             );
         }
 
-        return self::fromString($html, $charset);
+        return self::fromString($html, $charset, $baseUrl);
     }
 
     /**

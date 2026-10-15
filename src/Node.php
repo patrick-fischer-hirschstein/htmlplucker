@@ -7,6 +7,7 @@ use Dom\Text;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\SelectorException;
 use HtmlPlucker\Internal\Query;
+use HtmlPlucker\Internal\UrlResolver;
 
 /**
  * Wraps a \Dom\Element and provides a clean read API.
@@ -81,6 +82,33 @@ final class Node
         }
 
         return $this->element->getAttribute($name);
+    }
+
+    /**
+     * Returns a URL attribute (href, src, action, …) as an absolute URL.
+     *
+     * Relative values are resolved against the document's base URL:
+     * the first <base href> in the document, itself resolved against
+     * the URL the document was loaded from (fromUrl(), after redirects)
+     * or the $baseUrl passed to fromString()/fromFile().
+     * Without an absolute base URL — or if the value cannot be parsed —
+     * the trimmed value is returned unchanged.
+     *
+     * @return string|null null if the attribute is missing or empty
+     */
+    public function url(string $attribute = 'href'): ?string
+    {
+        $value = trim($this->attr($attribute) ?? '');
+
+        if ($value === '') {
+            return null;
+        }
+
+        $document = $this->element->ownerDocument;
+
+        return $document !== null
+            ? UrlResolver::resolve($document, $value)
+            : $value;
     }
 
     /**
