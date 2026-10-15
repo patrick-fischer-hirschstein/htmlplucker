@@ -7,12 +7,21 @@ use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\TransferStats;
 use HtmlPlucker\Exception\NetworkException;
+use HtmlPlucker\Exception\SizeLimitExceededException;
+use HtmlPlucker\Internal\LimitedSink;
+use HtmlPlucker\Limits;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Default HTTP client implementation using Guzzle.
  *
  * Handles redirects, timeouts and maps Guzzle exceptions
  * to HtmlPlucker's NetworkException.
+ *
+ * Response bodies are limited to $maxBytes (default 10 MiB, null = no
+ * limit): an oversized Content-Length aborts before the body is read,
+ * otherwise the transfer aborts as soon as the decoded body exceeds the
+ * limit. Both cases throw SizeLimitExceededException.
  */
 final class GuzzleHttpClient implements HttpClientInterface
 {
@@ -22,8 +31,19 @@ final class GuzzleHttpClient implements HttpClientInterface
 
     private readonly Client $client;
 
-    public function __construct(?Client $client = null)
-    {
+    /**
+     * @param int|null $maxBytes Maximum decoded body size in bytes, null for no limit
+     *
+     * @throws \InvalidArgumentException if $maxBytes is not positive
+     */
+    public function __construct(
+        ?Client                  $client = null,
+        private readonly ?int    $maxBytes = Limits::DEFAULT_MAX_BYTES,
+    ) {
+        if ($maxBytes !== null && $maxBytes < 1) {
+            throw new \InvalidArgumentException('$maxBytes must be a positive integer or null.');
+        }
+
         $this->client = $client ?? new Client();
     }
 
@@ -34,17 +54,23 @@ final class GuzzleHttpClient implements HttpClientInterface
     ): HttpResponse {
         $effectiveUrl = $url;
 
+        $options = [
+            'timeout'         => $timeout,
+            'connect_timeout' => 5,
+            'allow_redirects' => ['max' => 5],
+            'headers'         => self::mergeHeaders($headers),
+            // Called once per transfer; after redirects the last call wins
+            'on_stats'        => static function (TransferStats $stats) use (&$effectiveUrl): void {
+                $effectiveUrl = (string) $stats->getEffectiveUri();
+            },
+        ];
+
+        if ($this->maxBytes !== null) {
+            $options += self::limitOptions($url, $this->maxBytes);
+        }
+
         try {
-            $response = $this->client->get($url, [
-                'timeout'         => $timeout,
-                'connect_timeout' => 5,
-                'allow_redirects' => ['max' => 5],
-                'headers'         => self::mergeHeaders($headers),
-                // Called once per transfer; after redirects the last call wins
-                'on_stats'        => static function (TransferStats $stats) use (&$effectiveUrl): void {
-                    $effectiveUrl = (string) $stats->getEffectiveUri();
-                },
-            ]);
+            $response = $this->client->get($url, $options);
 
             return new HttpResponse(
                 body:         (string) $response->getBody(),
@@ -54,6 +80,13 @@ final class GuzzleHttpClient implements HttpClientInterface
             );
 
         } catch (GuzzleException $e) {
+            // Guzzle wraps exceptions thrown by on_headers and the sink
+            $sizeLimit = self::findSizeLimitException($e);
+
+            if ($sizeLimit !== null) {
+                throw $sizeLimit;
+            }
+
             throw new NetworkException(
                 message:    "Could not fetch URL: \"{$url}\" — {$e->getMessage()}",
                 // Only HTTP error responses (4xx/5xx) carry a status; transfer
@@ -65,6 +98,38 @@ final class GuzzleHttpClient implements HttpClientInterface
                 previous:   $e
             );
         }
+    }
+
+    /**
+     * Request options enforcing the body size limit.
+     *
+     * @return array{sink: LimitedSink, on_headers: callable(ResponseInterface): void}
+     */
+    private static function limitOptions(string $url, int $maxBytes): array
+    {
+        return [
+            // Receives the decoded body; throws (and aborts) beyond $maxBytes
+            'sink'       => new LimitedSink($url, $maxBytes),
+            // Fail fast before any body bytes arrive
+            'on_headers' => static function (ResponseInterface $response) use ($url, $maxBytes): void {
+                $length = $response->getHeaderLine('Content-Length');
+
+                if (ctype_digit($length) && (int) $length > $maxBytes) {
+                    throw new SizeLimitExceededException($url, $maxBytes, (int) $length);
+                }
+            },
+        ];
+    }
+
+    private static function findSizeLimitException(\Throwable $e): ?SizeLimitExceededException
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof SizeLimitExceededException) {
+                return $current;
+            }
+        }
+
+        return null;
     }
 
     /**
