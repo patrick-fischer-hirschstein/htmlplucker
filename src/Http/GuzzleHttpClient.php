@@ -4,6 +4,7 @@ namespace HtmlPlucker\Http;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use HtmlPlucker\Exception\NetworkException;
 
 /**
@@ -42,8 +43,11 @@ final class GuzzleHttpClient implements HttpClientInterface
 
         } catch (GuzzleException $e) {
             throw new NetworkException(
-                message:  "Could not fetch URL: \"{$url}\" — {$e->getMessage()}",
-                previous: $e
+                message:    "Could not fetch URL: \"{$url}\" — {$e->getMessage()}",
+                statusCode: $e instanceof RequestException
+                    ? $e->getResponse()?->getStatusCode()
+                    : null,
+                previous:   $e
             );
         }
     }

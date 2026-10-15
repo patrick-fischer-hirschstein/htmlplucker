@@ -107,6 +107,7 @@ try {
     $doc = Document::fromUrl($url);
 } catch (NetworkException $e) {
     // Connection failed or HTTP 4xx/5xx
+    // $e->statusCode: e.g. 404, 429, 503 — null if no response was received
 }
 
 // Optional — no exception, check for null

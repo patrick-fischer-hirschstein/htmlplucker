@@ -80,7 +80,8 @@ final class MockHttpClient implements HttpClientInterface
 
         if ($response['status'] >= 400) {
             throw new NetworkException(
-                "MockHttpClient: HTTP {$response['status']} for \"{$url}\""
+                message:    "MockHttpClient: HTTP {$response['status']} for \"{$url}\"",
+                statusCode: $response['status']
             );
         }
 
