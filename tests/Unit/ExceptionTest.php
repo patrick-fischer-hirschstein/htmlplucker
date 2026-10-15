@@ -9,6 +9,7 @@ use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
 use HtmlPlucker\Exception\SelectorException;
+use HtmlPlucker\Exception\SizeLimitExceededException;
 use PHPUnit\Framework\TestCase;
 
 final class ExceptionTest extends TestCase
@@ -73,6 +74,26 @@ final class ExceptionTest extends TestCase
 
         $this->assertSame(503, $e->statusCode);
         $this->assertSame($previous, $e->getPrevious());
+    }
+
+    public function test_size_limit_exception_extends_load_exception(): void
+    {
+        $this->assertInstanceOf(
+            LoadException::class,
+            new SizeLimitExceededException('https://example.com', 1000)
+        );
+    }
+
+    public function test_size_limit_exception_keeps_limit_and_actual_size(): void
+    {
+        $known   = new SizeLimitExceededException('/tmp/big.html', 1000, 5000);
+        $unknown = new SizeLimitExceededException('/tmp/big.html', 1000);
+
+        $this->assertSame(1000, $known->limit);
+        $this->assertSame(5000, $known->actualSize);
+        $this->assertNull($unknown->actualSize);
+        $this->assertStringContainsString('/tmp/big.html', $known->getMessage());
+        $this->assertStringContainsString('1000', $known->getMessage());
     }
 
     public function test_selector_exception_extends_base(): void

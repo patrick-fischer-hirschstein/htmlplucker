@@ -7,6 +7,7 @@ use HtmlPlucker\Exception\FileNotFoundException;
 use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
+use HtmlPlucker\Exception\SizeLimitExceededException;
 use HtmlPlucker\Node;
 use HtmlPlucker\Testing\MockHttpClient;
 use PHPUnit\Framework\Attributes\RequiresPhp;
@@ -153,6 +154,59 @@ final class DocumentTest extends TestCase
     {
         $this->expectException(FileNotFoundException::class);
         Document::fromFile(sys_get_temp_dir());
+    }
+
+    /**
+     * Creates a temp file of $bytes bytes ("<p>…</p>" padded with "x"),
+     * runs $test with its path and removes it afterwards.
+     *
+     * @param callable(string): void $test
+     */
+    private function withFileOfSize(int $bytes, callable $test): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'htmlplucker_');
+        file_put_contents($path, '<p>' . str_repeat('x', $bytes - 7) . '</p>');
+
+        try {
+            $test($path);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_from_file_over_limit_throws_with_actual_size(): void
+    {
+        $this->withFileOfSize(5000, function (string $path): void {
+            try {
+                Document::fromFile($path, maxBytes: 1000);
+                $this->fail('SizeLimitExceededException erwartet');
+            } catch (SizeLimitExceededException $e) {
+                $this->assertSame(1000, $e->limit);
+                $this->assertSame(5000, $e->actualSize);
+            }
+        });
+    }
+
+    public function test_from_file_exactly_at_limit_is_accepted(): void
+    {
+        $this->withFileOfSize(1000, function (string $path): void {
+            $doc = Document::fromFile($path, maxBytes: 1000);
+            $this->assertSame(993, \strlen($doc->expect('p')->text()));
+        });
+    }
+
+    public function test_from_file_null_disables_the_limit(): void
+    {
+        $this->withFileOfSize(5000, function (string $path): void {
+            $doc = Document::fromFile($path, maxBytes: null);
+            $this->assertTrue($doc->has('p'));
+        });
+    }
+
+    public function test_from_file_non_positive_limit_is_rejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Document::fromFile(__FILE__, maxBytes: 0);
     }
 
     // -------------------------------------------------------------------------

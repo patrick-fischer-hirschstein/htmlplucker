@@ -12,7 +12,9 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use HtmlPlucker\Exception\NetworkException;
+use HtmlPlucker\Exception\SizeLimitExceededException;
 use HtmlPlucker\Http\GuzzleHttpClient;
+use HtmlPlucker\Limits;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
@@ -28,6 +30,15 @@ final class GuzzleHttpClientTest extends TestCase
      */
     private function client(Response|\Throwable ...$queue): GuzzleHttpClient
     {
+        return $this->limitedClient(Limits::DEFAULT_MAX_BYTES, ...$queue);
+    }
+
+    /**
+     * @param Response|\Throwable ...$queue responses/exceptions in order;
+     *                                      defaults to a single 200 "ok"
+     */
+    private function limitedClient(?int $maxBytes, Response|\Throwable ...$queue): GuzzleHttpClient
+    {
         $queue = $queue !== [] ? array_values($queue) : [new Response(200, [], 'ok')];
         $stack = HandlerStack::create(new MockHandler($queue));
 
@@ -38,7 +49,7 @@ final class GuzzleHttpClientTest extends TestCase
             return $request;
         }));
 
-        return new GuzzleHttpClient(new Client(['handler' => $stack]));
+        return new GuzzleHttpClient(new Client(['handler' => $stack]), $maxBytes);
     }
 
     private function sentRequest(): RequestInterface
@@ -183,5 +194,68 @@ final class GuzzleHttpClientTest extends TestCase
             $this->assertNull($e->statusCode);
             $this->assertSame($failure, $e->getPrevious());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Size limit
+    // -------------------------------------------------------------------------
+
+    public function test_content_length_over_limit_aborts_with_actual_size(): void
+    {
+        $response = new Response(200, ['Content-Length' => '5000'], str_repeat('x', 5000));
+
+        try {
+            $this->limitedClient(1000, $response)->get('https://example.com');
+            $this->fail('SizeLimitExceededException erwartet');
+        } catch (SizeLimitExceededException $e) {
+            $this->assertSame(1000, $e->limit);
+            $this->assertSame(5000, $e->actualSize);
+            $this->assertStringContainsString('https://example.com', $e->getMessage());
+        }
+    }
+
+    public function test_body_over_limit_without_content_length_aborts_while_reading(): void
+    {
+        try {
+            $this->limitedClient(1000, new Response(200, [], str_repeat('x', 5000)))
+                ->get('https://example.com');
+            $this->fail('SizeLimitExceededException erwartet');
+        } catch (SizeLimitExceededException $e) {
+            $this->assertSame(1000, $e->limit);
+            $this->assertNull($e->actualSize);
+        }
+    }
+
+    public function test_body_exactly_at_limit_is_accepted(): void
+    {
+        $body = $this->limitedClient(1000, new Response(200, [], str_repeat('x', 1000)))
+            ->get('https://example.com')
+            ->body;
+
+        $this->assertSame(1000, \strlen($body));
+    }
+
+    public function test_body_one_byte_over_limit_is_rejected(): void
+    {
+        $this->expectException(SizeLimitExceededException::class);
+
+        $this->limitedClient(1000, new Response(200, [], str_repeat('x', 1001)))
+            ->get('https://example.com');
+    }
+
+    public function test_null_disables_the_limit(): void
+    {
+        $body = $this->limitedClient(null, new Response(200, [], str_repeat('x', 50_000)))
+            ->get('https://example.com')
+            ->body;
+
+        $this->assertSame(50_000, \strlen($body));
+    }
+
+    public function test_non_positive_limit_is_rejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new GuzzleHttpClient(maxBytes: 0);
     }
 }
