@@ -81,7 +81,7 @@ final class Document
      */
     public static function fromFile(string $path): self
     {
-        if (!is_readable($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             throw new FileNotFoundException(
                 "File not found or not readable: \"{$path}\""
             );

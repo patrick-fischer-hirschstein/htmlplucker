@@ -134,6 +134,12 @@ final class DocumentTest extends TestCase
         Document::fromFile('/tmp/this_file_does_not_exist_htmlplucker.html');
     }
 
+    public function test_from_file_throws_on_directory(): void
+    {
+        $this->expectException(FileNotFoundException::class);
+        Document::fromFile(sys_get_temp_dir());
+    }
+
     // -------------------------------------------------------------------------
     // first()
     // -------------------------------------------------------------------------
