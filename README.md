@@ -47,7 +47,12 @@ foreach ($doc->all('table tr') as $row) {
 
 ```php
 Document::fromString(string $html, ?string $charset = null, ?string $baseUrl = null): Document
-Document::fromFile(string $path, ?string $charset = null, ?string $baseUrl = null): Document
+Document::fromFile(
+    string $path,
+    ?string $charset = null,
+    ?string $baseUrl = null,
+    ?int $maxBytes = Limits::DEFAULT_MAX_BYTES   // 10 MiB, null = no limit
+): Document
 Document::fromUrl(
     string $url,
     int $timeout = 10,
@@ -140,6 +145,32 @@ $doc = Document::fromFile('/path/to/saved-page.html', baseUrl: 'https://example.
 Without an absolute base URL the value is returned unchanged (like `attr()`);
 a missing or empty attribute yields `null`.
 
+### Size limits
+
+`fromUrl()` and `fromFile()` refuse documents larger than **10 MiB** by
+default and throw a `SizeLimitExceededException` (`$limit`, and `$actualSize`
+when known up front). Nothing beyond the limit is loaded into memory:
+
+- **URLs:** an oversized `Content-Length` aborts before the body is
+  transferred; otherwise the transfer aborts as soon as the *decoded* body
+  exceeds the limit — this also covers missing or wrong `Content-Length`
+  headers and compressed "zip bombs".
+- **Files:** the file size is checked before reading.
+
+```php
+use HtmlPlucker\Http\GuzzleHttpClient;
+use HtmlPlucker\Limits;
+
+// URLs: the limit belongs to the HTTP client
+$client = new GuzzleHttpClient(maxBytes: 2 * Limits::DEFAULT_MAX_BYTES);
+$doc    = Document::fromUrl($url, client: $client);
+
+// Files: per call
+$doc = Document::fromFile('/path/to/huge.html', maxBytes: null); // no limit
+```
+
+`fromString()` has no limit — the string is already in memory.
+
 ## Error Handling
 
 ```php
@@ -167,11 +198,12 @@ $title = $doc->expect('h1')->text();
 ```
 HtmlPluckerException
 ├── LoadException
-│   ├── NetworkException      URL not reachable or HTTP error
-│   └── FileNotFoundException File does not exist
-├── ParseException            Empty input
-├── SelectorException         Invalid CSS selector
-└── NodeNotFoundException     expect() found nothing
+│   ├── NetworkException           URL not reachable or HTTP error
+│   ├── FileNotFoundException      File does not exist
+│   └── SizeLimitExceededException Document larger than the size limit
+├── ParseException                 Empty input
+├── SelectorException              Invalid CSS selector
+└── NodeNotFoundException          expect() found nothing
 ```
 
 ## Custom HTTP Client

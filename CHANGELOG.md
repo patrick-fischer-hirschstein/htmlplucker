@@ -5,6 +5,27 @@ All notable changes to HtmlPlucker will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-10-15
+
+### Added
+
+- Größenlimit für `Document::fromUrl()` und `fromFile()`, Default **10 MiB**
+  (`Limits::DEFAULT_MAX_BYTES`), `null` = unbegrenzt
+  - URLs: Konstruktor-Parameter `GuzzleHttpClient(maxBytes: …)`; ein zu großes
+    `Content-Length` bricht vor dem Body ab, sonst bricht der Transfer ab,
+    sobald der *dekodierte* Body das Limit überschreitet (auch bei fehlendem
+    `Content-Length` und bei komprimierten „Zip-Bomben“)
+  - Dateien: neuer optionaler Parameter `fromFile(…, maxBytes: …)`;
+    die Dateigröße wird vor dem Lesen geprüft
+- `SizeLimitExceededException` (unter `LoadException`) mit `$limit` und
+  `$actualSize` (bekannte Gesamtgröße oder `null`)
+- `Limits::DEFAULT_MAX_BYTES`
+
+### Changed
+
+- Dokumente über 10 MiB werden ohne explizite Konfiguration abgelehnt —
+  bisher wurden sie vollständig in den Speicher geladen
+
 ## [1.1.0] — 2026-10-15
 
 > **Enthält Breaking Changes** — bewusst in einer Minor-Version, da noch keine
