@@ -25,7 +25,7 @@ final class MockHttpClient implements HttpClientInterface
     /** @var array<string, array{html: string, status: int, charset: ?string}> */
     private array $responses = [];
 
-    /** @var array<int, array{url: string, timeout: int, headers: array}> */
+    /** @var list<array{url: string, timeout: int, headers: array<string, string>}> */
     private array $requests = [];
 
     // -------------------------------------------------------------------------
@@ -109,7 +109,7 @@ final class MockHttpClient implements HttpClientInterface
     /**
      * Returns all recorded requests.
      *
-     * @return array<int, array{url: string, timeout: int, headers: array}>
+     * @return list<array{url: string, timeout: int, headers: array<string, string>}>
      */
     public function getRequests(): array
     {

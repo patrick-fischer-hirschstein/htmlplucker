@@ -68,6 +68,8 @@ final class Document
      * Provide a custom $client to use a different HTTP implementation
      * or to inject a MockHttpClient in tests.
      *
+     * @param array<string, string> $headers Additional request headers, name => value
+     *
      * @throws NetworkException if the URL cannot be fetched or returns an HTTP error
      * @throws ParseException if the response body is empty
      */

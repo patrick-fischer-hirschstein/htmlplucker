@@ -41,14 +41,7 @@ final class Query
             throw new SelectorException($selector, $e);
         }
 
-        $result = [];
-
-        foreach ($list as $element) {
-            if ($element instanceof Element) {
-                $result[] = $element;
-            }
-        }
-
-        return $result;
+        // querySelectorAll() only ever yields elements
+        return iterator_to_array($list, false);
     }
 }

@@ -85,6 +85,8 @@ final class Node
 
     /**
      * Returns all attributes as an associative array.
+     *
+     * @return array<string, string> name => value
      */
     public function attrs(): array
     {
