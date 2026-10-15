@@ -46,8 +46,8 @@ foreach ($doc->all('table tr') as $row) {
 ### Loading
 
 ```php
-Document::fromString(string $html): Document
-Document::fromFile(string $path): Document
+Document::fromString(string $html, ?string $charset = null): Document
+Document::fromFile(string $path, ?string $charset = null): Document
 Document::fromUrl(
     string $url,
     int $timeout = 10,
@@ -55,6 +55,25 @@ Document::fromUrl(
     ?HttpClientInterface $client = null
 ): Document
 ```
+
+### Character encoding
+
+The encoding is determined in this order (as specified for HTML):
+
+1. Byte order mark (UTF-8, UTF-16BE, UTF-16LE)
+2. `$charset` parameter — or, for `fromUrl()`, the charset from the
+   `Content-Type` response header
+3. `<meta charset>` within the first 1024 bytes
+4. UTF-8
+
+```php
+// Legacy page without <meta charset>, known to be Latin-1
+$doc = Document::fromFile('/path/to/old-page.html', 'ISO-8859-1');
+```
+
+If a server sends an unknown charset name (e.g. `charset=none`),
+`fromUrl()` ignores it and falls back to steps 3–4. An invalid
+`$charset` passed to `fromString()`/`fromFile()` throws a `ParseException`.
 
 ### Querying (Document and Node)
 
@@ -135,17 +154,30 @@ Swap in your own client for proxy support, custom auth, etc.:
 
 ```php
 use HtmlPlucker\Http\HttpClientInterface;
+use HtmlPlucker\Http\HttpResponse;
 
 final class MyClient implements HttpClientInterface
 {
-    public function get(string $url, int $timeout = 10, array $headers = []): string
+    public function get(string $url, int $timeout = 10, array $headers = []): HttpResponse
     {
-        // your implementation
+        // your implementation — throw NetworkException on failure / HTTP 4xx/5xx
+        return new HttpResponse(
+            body:         $body,
+            statusCode:   200,
+            charset:      'UTF-8',   // from Content-Type, or null
+            effectiveUrl: $finalUrl, // URL after redirects
+        );
     }
 }
 
 $doc = Document::fromUrl($url, client: new MyClient());
 ```
+
+### Upgrading from 1.0
+
+`HttpClientInterface::get()` returns an `HttpResponse` instead of the body
+string. Custom implementations need to wrap their result as shown above.
+Code that only uses `Document::fromUrl()` is not affected.
 
 ## Testing
 
