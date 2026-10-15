@@ -9,6 +9,7 @@ use HtmlPlucker\Exception\NetworkException;
 use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
 use HtmlPlucker\Exception\SelectorException;
+use HtmlPlucker\Exception\SizeLimitExceededException;
 use HtmlPlucker\Http\GuzzleHttpClient;
 use HtmlPlucker\Http\HttpClientInterface;
 use HtmlPlucker\Internal\Query;
@@ -116,28 +117,54 @@ final class Document
     /**
      * Reads a file from disk and parses it as HTML.
      *
+     * Files larger than $maxBytes (default 10 MiB, null = no limit) are
+     * rejected before reading; reads are capped as well in case the file
+     * grows in the meantime.
+     *
      * @see fromString() for the $charset and $baseUrl parameters
      *
-     * @throws FileNotFoundException if the file does not exist or is not readable
-     * @throws ParseException if the file is empty or $charset is not supported
+     * @throws FileNotFoundException      if the file does not exist or is not readable
+     * @throws SizeLimitExceededException if the file is larger than $maxBytes
+     * @throws ParseException             if the file is empty or $charset is not supported
+     * @throws \InvalidArgumentException  if $maxBytes is not positive
      */
     public static function fromFile(
         string  $path,
         ?string $charset = null,
-        ?string $baseUrl = null
+        ?string $baseUrl = null,
+        ?int    $maxBytes = Limits::DEFAULT_MAX_BYTES
     ): self {
+        if ($maxBytes !== null && $maxBytes < 1) {
+            throw new \InvalidArgumentException('$maxBytes must be a positive integer or null.');
+        }
+
         if (!is_file($path) || !is_readable($path)) {
             throw new FileNotFoundException(
                 "File not found or not readable: \"{$path}\""
             );
         }
 
-        $html = file_get_contents($path);
+        if ($maxBytes !== null) {
+            $size = filesize($path);
+
+            if ($size !== false && $size > $maxBytes) {
+                throw new SizeLimitExceededException($path, $maxBytes, $size);
+            }
+        }
+
+        // Read at most one byte past the limit to detect growth since filesize()
+        $html = $maxBytes !== null
+            ? file_get_contents($path, false, null, 0, $maxBytes + 1)
+            : file_get_contents($path);
 
         if ($html === false) {
             throw new FileNotFoundException(
                 "Could not read file: \"{$path}\""
             );
+        }
+
+        if ($maxBytes !== null && \strlen($html) > $maxBytes) {
+            throw new SizeLimitExceededException($path, $maxBytes);
         }
 
         return self::fromString($html, $charset, $baseUrl);
