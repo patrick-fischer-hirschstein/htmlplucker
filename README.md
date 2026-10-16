@@ -96,7 +96,7 @@ If a server sends an unknown charset name (e.g. `charset=none`),
 $node->text(): string                              // normalized plaintext (see below)
 $node->rawText(): string                           // unmodified textContent
 $node->html(): string                              // inner HTML
-$node->tag(): string                               // lowercase tag name
+$node->tag(): string                               // tag name ("div"; SVG keeps case: "foreignObject")
 
 // Attributes
 $node->attr(string $name, ?string $default): ?string

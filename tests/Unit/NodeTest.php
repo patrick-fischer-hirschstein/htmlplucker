@@ -38,10 +38,21 @@ final class NodeTest extends TestCase
         $this->assertStringContainsString('<b>bold</b>', $node->html());
     }
 
-    public function test_tag_returns_lowercase(): void
+    public function test_tag_returns_lowercase_for_html(): void
     {
         $node = $this->doc('<DIV>test</DIV>')->expect('div');
         $this->assertSame('div', $node->tag());
+    }
+
+    public function test_tag_keeps_case_of_svg_elements(): void
+    {
+        $svg = $this->doc('<svg><foreignObject></foreignObject><linearGradient/></svg>')
+            ->expect('svg');
+
+        $this->assertSame(
+            ['foreignObject', 'linearGradient'],
+            array_map(static fn(Node $node): string => $node->tag(), $svg->children())
+        );
     }
 
     // -------------------------------------------------------------------------

@@ -61,11 +61,14 @@ final class Node
     }
 
     /**
-     * Returns the tag name in lowercase (e.g. "div", "a", "td").
+     * Returns the tag name (e.g. "div", "a", "td").
+     *
+     * HTML element names are always lowercase; SVG and MathML elements
+     * keep their spec-defined case (e.g. "foreignObject", "linearGradient").
      */
     public function tag(): string
     {
-        return strtolower($this->element->localName);
+        return $this->element->localName;
     }
 
     // -------------------------------------------------------------------------
