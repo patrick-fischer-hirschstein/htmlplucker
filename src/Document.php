@@ -2,17 +2,15 @@
 
 namespace HtmlPlucker;
 
-use Dom\Element;
 use Dom\HTMLDocument;
+use Dom\ParentNode;
 use HtmlPlucker\Exception\FileNotFoundException;
 use HtmlPlucker\Exception\NetworkException;
-use HtmlPlucker\Exception\NodeNotFoundException;
 use HtmlPlucker\Exception\ParseException;
-use HtmlPlucker\Exception\SelectorException;
 use HtmlPlucker\Exception\SizeLimitExceededException;
 use HtmlPlucker\Http\GuzzleHttpClient;
 use HtmlPlucker\Http\HttpClientInterface;
-use HtmlPlucker\Internal\Query;
+use HtmlPlucker\Internal\QueryMethods;
 
 /**
  * Entry point for HtmlPlucker.
@@ -27,6 +25,8 @@ use HtmlPlucker\Internal\Query;
  */
 final class Document
 {
+    use QueryMethods;
+
     private HTMLDocument $dom;
 
     /**
@@ -40,6 +40,11 @@ final class Document
         if ($baseUrl !== null) {
             $this->dom->documentURI = $baseUrl;
         }
+    }
+
+    private function queryRoot(): ParentNode
+    {
+        return $this->dom;
     }
 
     // -------------------------------------------------------------------------
@@ -202,58 +207,5 @@ final class Document
         return str_starts_with($html, "\xEF\xBB\xBF")
             || str_starts_with($html, "\xFE\xFF")
             || str_starts_with($html, "\xFF\xFE");
-    }
-
-    // -------------------------------------------------------------------------
-    // Querying
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the first element matching $selector, or null.
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function first(string $selector): ?Node
-    {
-        $element = Query::first($this->dom, $selector);
-
-        return $element !== null ? new Node($element) : null;
-    }
-
-    /**
-     * Returns all elements matching $selector.
-     *
-     * @return list<Node>
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function all(string $selector): array
-    {
-        return array_map(
-            static fn(Element $element): Node => new Node($element),
-            Query::all($this->dom, $selector)
-        );
-    }
-
-    /**
-     * Returns true if at least one element matches $selector.
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function has(string $selector): bool
-    {
-        return Query::first($this->dom, $selector) !== null;
-    }
-
-    /**
-     * Returns the first element matching $selector.
-     *
-     * @throws NodeNotFoundException
-     * @throws SelectorException on an invalid selector
-     */
-    public function expect(string $selector): Node
-    {
-        return $this->first($selector)
-            ?? throw new NodeNotFoundException($selector);
     }
 }

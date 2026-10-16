@@ -3,10 +3,9 @@
 namespace HtmlPlucker;
 
 use Dom\Element;
+use Dom\ParentNode;
 use Dom\Text;
-use HtmlPlucker\Exception\NodeNotFoundException;
-use HtmlPlucker\Exception\SelectorException;
-use HtmlPlucker\Internal\Query;
+use HtmlPlucker\Internal\QueryMethods;
 use HtmlPlucker\Internal\UrlResolver;
 
 /**
@@ -14,9 +13,16 @@ use HtmlPlucker\Internal\UrlResolver;
  */
 final class Node
 {
+    use QueryMethods;
+
     public function __construct(
         private readonly Element $element
     ) {}
+
+    private function queryRoot(): ParentNode
+    {
+        return $this->element;
+    }
 
     // -------------------------------------------------------------------------
     // Content
@@ -128,59 +134,6 @@ final class Node
         }
 
         return $result;
-    }
-
-    // -------------------------------------------------------------------------
-    // Querying within this node's subtree
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the first element matching $selector within this node, or null.
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function first(string $selector): ?self
-    {
-        $element = Query::first($this->element, $selector);
-
-        return $element !== null ? new self($element) : null;
-    }
-
-    /**
-     * Returns all elements matching $selector within this node.
-     *
-     * @return list<self>
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function all(string $selector): array
-    {
-        return array_map(
-            static fn(Element $element): self => new self($element),
-            Query::all($this->element, $selector)
-        );
-    }
-
-    /**
-     * Returns true if at least one element matches $selector within this node.
-     *
-     * @throws SelectorException on an invalid selector
-     */
-    public function has(string $selector): bool
-    {
-        return Query::first($this->element, $selector) !== null;
-    }
-
-    /**
-     * Returns the first element matching $selector within this node.
-     *
-     * @throws NodeNotFoundException
-     * @throws SelectorException on an invalid selector
-     */
-    public function expect(string $selector): self
-    {
-        return $this->first($selector)
-            ?? throw new NodeNotFoundException($selector);
     }
 
     // -------------------------------------------------------------------------
