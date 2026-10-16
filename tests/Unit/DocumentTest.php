@@ -10,6 +10,7 @@ use HtmlPlucker\Exception\ParseException;
 use HtmlPlucker\Exception\SizeLimitExceededException;
 use HtmlPlucker\Node;
 use HtmlPlucker\Testing\MockHttpClient;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\TestCase;
 
@@ -100,6 +101,29 @@ final class DocumentTest extends TestCase
             ->addResponse('https://example.com', '', 404);
 
         $this->expectException(NetworkException::class);
+        Document::fromUrl('https://example.com', client: $mock);
+    }
+
+    /**
+     * A successful response with an empty body is a content problem,
+     * not a network problem: the server answered correctly.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function emptyBodyProvider(): array
+    {
+        return [
+            'empty'           => [''],
+            'whitespace only' => ["  \n\t  "],
+        ];
+    }
+
+    #[DataProvider('emptyBodyProvider')]
+    public function test_from_url_empty_body_throws_parse_exception(string $body): void
+    {
+        $mock = (new MockHttpClient())->addResponse('https://example.com', $body);
+
+        $this->expectException(ParseException::class);
         Document::fromUrl('https://example.com', client: $mock);
     }
 
